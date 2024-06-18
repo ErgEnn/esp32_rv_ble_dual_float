@@ -3,8 +3,8 @@
 #include "BLEBeacon.h"
 #include <SPIFFS.h>
 
-#define FLOAT_1 34
-#define FLOAT_2 35
+#define FLOAT_1 2
+#define FLOAT_2 15
 
 #define LED 2
 
@@ -13,38 +13,41 @@ typedef struct {
     double y;
 } DataPoint;
 
-DataPoint data[] = {
-    {1359, 100},
-    {1395, 87.5},
-    {1474, 75},
-    {1517, 62.5},
-    {1603, 50},
-    {1644, 37.5},
-    {1747, 25},
-    {1806, 12.5},
-    {2017, 0}
+DataPoint refs1[] = {
+    {1300, 100},
+    {1370, 90},
+    {1460, 74},
+    {1585, 56},
+    {1720, 0},
+    {1830, 0}
 };
-int dataCount = sizeof(data) / sizeof(data[0]);
 
-int interpolate(double x) {
-    if (x <= data[0].x) return data[0].y;
-    if (x >= data[dataCount - 1].x) return data[dataCount - 1].y;
+DataPoint refs2[] = {
+    {1310, 100},
+    {1385, 83},
+    {1465, 69},
+    {1520, 57},
+    {1655, 44},
+    {1735, 31},
+    {1830, 18},
+    {1935, 0}
+};
 
-    // Find the right interval for interpolation
-    for (int i = 0; i < dataCount - 1; i++) {
-        if (x >= data[i].x && x <= data[i+1].x) {
-            // Perform linear interpolation
-            double slope = (data[i+1].y - data[i].y) / (data[i+1].x - data[i].x);
-            return data[i].y + slope * (x - data[i].x);
+double findClosest(int x, DataPoint* refs, int dataCount) {
+    int bestId = -1;
+
+    for (int i = 0; i < dataCount; i++) {
+        if(bestId == -1 || abs(refs[i].x-x) < abs(refs[bestId].x-x)){
+          bestId = i;
         }
     }
-    return 0;
+    return refs[bestId].y;
 }
 
 BLEAdvertising *advertising;
 
-int float1_permille = 0;
-int float2_permille = 0;
+double float1_permille = 0;
+double float2_permille = 0;
 
 void set_beacon() {
     BLEBeacon beacon = BLEBeacon();
@@ -89,8 +92,8 @@ void loop() {
     delay(100);
   }
   
-  float1_permille = interpolate(float1_buffer / 50);
-  float2_permille = interpolate(float2_buffer / 50);
+  float1_permille = findClosest(float1_buffer / 50, refs1, 6);
+  float2_permille = findClosest(float2_buffer / 50, refs2, 8);
 
   set_beacon();
   digitalWrite(LED, HIGH);
